@@ -14,7 +14,7 @@ function resolvePromise(promise2, x, resolve, reject) {
     // 加锁，防止别人的 promise 调了成功后还是可以调成功！
     let called = false;
 
-    // 取 p.then 时可能会抛出异常，所以用 try...catch...
+    // 取别人的 x(Promise), x.then 时可能会抛出异常，所以用 try...catch...
     try {
       let then = x.then;
 
