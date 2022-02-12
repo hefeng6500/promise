@@ -44,22 +44,46 @@ class Promise {
             throw reason;
           };
 
-    if (this.status === Promise.FULFILLED) {
-      onFulfilled(this.value);
-    }
+    let promise2 = new Promise((resolve, reject) => {
+      if (this.status === Promise.FULFILLED) {
+        try {
+          let x = onFulfilled(this.value);
+            
+          resolve(x);
+        } catch (error) {
+          reject(error);
+        }
+      }
 
-    if (this.status === Promise.REJECTED) {
-      onRejected(this.reason);
-    }
+      if (this.status === Promise.REJECTED) {
+        try {
+          let x = onRejected(this.reason);
+          reject(x);
+        } catch (error) {
+          reject(error);
+        }
+      }
 
-    if (this.status === Promise.PENDING) {
-      this.onResolvedCallbacks.push(() => {
-        onFulfilled(this.value);
-      });
-      this.onRejectedCallbacks.push(() => {
-        onRejected(this.reason);
-      });
-    }
+      if (this.status === Promise.PENDING) {
+        this.onResolvedCallbacks.push(() => {
+          try {
+            let x = onFulfilled(this.value);
+            resolve(x);
+          } catch (error) {
+            reject(error);
+          }
+        });
+        this.onRejectedCallbacks.push(() => {
+          try {
+            let x = onRejected(this.reason);
+            reject(x);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }
+    });
+    return promise2
   }
 
   catch() {}
