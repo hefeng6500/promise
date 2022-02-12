@@ -1,5 +1,9 @@
 # Promise
 
+Promises/A+: https://promisesaplus.com/
+
+[译]Promise/A+ 规范: https://zhuanlan.zhihu.com/p/143204897
+
 1. 基本 Promise
    执行器
    resolve, reject, then(同步)
