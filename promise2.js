@@ -1,27 +1,50 @@
-'use strict';
+/**
+ * 1、实现基本的 Promise
+ *
+ * 2、实现 ecextor 执行器，resolve， reject
+ *
+ * 3、实现基本的 then 方法，只包含同步
+ *
+ * 4、实现异步 resolve，then 方法的处理
+ *
+ * 5、实现 then 方法的链式调用
+ *
+ *      考虑 return 返回是普通值还是 promise
+ *      普通值：直接返回
+ *      promise，返回 promise 的状态
+ *
+ */
 
-// 利用 X 的值判断 promise2 是 resolve 还是 reject
-function resolvePromise(promise2, x, resolve, reject) {
-  // console.log(promise2, x, resolve, reject);
+const { resolve } = require("./src/promise");
 
-  // 考虑循环情况
-  if (x === promise2) {
+function resolvePromise(promise, x, resolve, reject) {
+  // console.log(promise, x, resolve, reject);
+
+  /**
+   * let promise = new Promise((resolve) => {
+   *    resolve(1)
+   * }).then(() => {
+   *    return promise
+   * })
+   */
+  if (x === promise) {
     reject(
-      new TypeError(`TypeError: Chaining cycle detected for promise #<Promise>`)
+      new TypeError("TypeError: Chaining cycle detected for promise #<Promise>")
     );
   }
 
-  // 兼容其他 promise
   if ((typeof x === "object" && x !== null) || typeof x === "function") {
-    // 加锁，防止别人的 promise 调了成功后还是可以调成功！
+    // promise
+
+    // 加锁，防止别人的 promise 不遵守 "状态一旦被修改不可再变化"
     let called = false;
 
-    // 取别人的 x(Promise), x.then 时可能会抛出异常，所以用 try...catch...
+    // 使用 try 是防止 别人的 promise 不可以直接读取 then
     try {
       let then = x.then;
 
       if (typeof then === "function") {
-        // 这里不使用 x.then 而使用 then.call(x) 也是防止取 p.then 时可能会抛出异常
+        // 使用 then.call 也是为了防止 别人的 promise 不可以直接读取 then 或者说再次读取then
         then.call(
           x,
           (y) => {
@@ -36,7 +59,7 @@ function resolvePromise(promise2, x, resolve, reject) {
           }
         );
       } else {
-        // x 可能是一个带有 then 属性的对象 { then: {} }
+        // 可能是带有 then 的普通对象 { then: {} }
         resolve(x);
       }
     } catch (error) {
@@ -45,18 +68,17 @@ function resolvePromise(promise2, x, resolve, reject) {
       reject(error);
     }
   } else {
-    // 普通值,直接 resolve
+    // 普通值
     resolve(x);
   }
 }
-
-class Promise$1 {
+class Promise {
   static PENDING = "pending";
-  static FULFILLED = "fulfilled";
+  static RESOLVED = "resolved";
   static REJECTED = "rejected";
 
   constructor(executor) {
-    this.status = Promise$1.PENDING;
+    this.status = Promise.PENDING;
     this.value = undefined;
     this.reason = undefined;
 
@@ -64,31 +86,32 @@ class Promise$1 {
     this.onRejectedCallbacks = [];
 
     const resolve = (value) => {
-      if (this.status === Promise$1.PENDING) {
-        this.status = Promise$1.FULFILLED;
+      if (this.status === Promise.PENDING) {
+        this.status = Promise.RESOLVED;
         this.value = value;
+
         this.onResolvedCallbacks.forEach((fn) => fn());
       }
     };
     const reject = (reason) => {
-      if (this.status === Promise$1.PENDING) {
-        this.status = Promise$1.REJECTED;
+      if (this.status === Promise.PENDING) {
+        this.status = Promise.REJECTED;
         this.reason = reason;
+
         this.onRejectedCallbacks.forEach((fn) => fn());
       }
     };
 
     try {
       executor(resolve, reject);
-    } catch (e) {
-      reject(e);
+    } catch (error) {
+      reject(error);
     }
   }
 
-  then(onFulfilled, onRejected) {
-    onFulfilled =
-      typeof onFulfilled === "function" ? onFulfilled : (value) => value;
-
+  then(onFulFilled, onRejected) {
+    onFulFilled =
+      typeof onFulFilled === "function" ? onFulFilled : (value) => value;
     onRejected =
       typeof onRejected === "function"
         ? onRejected
@@ -96,22 +119,19 @@ class Promise$1 {
             throw reason;
           };
 
-    let promise2 = new Promise$1((resolve, reject) => {
-      if (this.status === Promise$1.FULFILLED) {
-        // 为什么使用 setTimeout？
-        // 使得 resolvePromise 中能够获取到 promise2
+    let promise2 = new Promise((resolve, reject) => {
+      if (this.status === Promise.RESOLVED) {
         setTimeout(() => {
           try {
-            let x = onFulfilled(this.value);
-
+            let x = onFulFilled(this.value);
             resolvePromise(promise2, x, resolve, reject);
           } catch (error) {
             reject(error);
           }
-        });
+        }, 0);
       }
 
-      if (this.status === Promise$1.REJECTED) {
+      if (this.status === Promise.REJECTED) {
         setTimeout(() => {
           try {
             let x = onRejected(this.reason);
@@ -119,20 +139,22 @@ class Promise$1 {
           } catch (error) {
             reject(error);
           }
-        });
+        }, 0);
       }
 
-      if (this.status === Promise$1.PENDING) {
+      if (this.status === Promise.PENDING) {
         this.onResolvedCallbacks.push(() => {
           setTimeout(() => {
             try {
-              let x = onFulfilled(this.value);
+              let x = onFulFilled(this.value);
+              // resolve(x);
               resolvePromise(promise2, x, resolve, reject);
             } catch (error) {
               reject(error);
             }
-          });
+          }, 0);
         });
+
         this.onRejectedCallbacks.push(() => {
           setTimeout(() => {
             try {
@@ -141,28 +163,31 @@ class Promise$1 {
             } catch (error) {
               reject(error);
             }
-          });
+          }, 0);
         });
       }
     });
+
     return promise2;
   }
-
-  catch() {}
-
-  finally() {}
 }
 
-Promise$1.race = () => {};
+let p = new Promise((resolve, reject) => {
+  resolve(1);
+});
 
-Promise$1.all = () => {};
-
-Promise$1.allSettled = () => {};
-
-Promise$1.try = () => {};
-
-Promise$1.resolve = () => {};
-
-Promise$1.reject = () => {};
-
-module.exports = Promise$1;
+p.then(() => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      // resolve("success");
+      reject("fail");
+    }, 0);
+  });
+}).then(
+  (value) => {
+    console.log("value", value);
+  },
+  (reason) => {
+    console.log("reason", reason);
+  }
+);
